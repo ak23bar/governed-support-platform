@@ -9,29 +9,25 @@
 | Field | Current value |
 | --- | --- |
 | Current package | Package A |
-| Current epic | Pre-E01 repository bootstrap |
-| Current issue | Repository baseline |
-| Current issue state | In progress; frozen specifications and execution-control files are being assembled and verified |
-| Current branch | `chore/repository-baseline` |
-| Repository status | Created and cloned; baseline changes not yet merged to `main` |
+| Current epic | E01 - Repository, CI, Domain Contracts, and Provider Fakes |
+| Current issue | [#2 - E01 Repository, CI, Domain Contracts, and Provider Fakes](https://github.com/ak23bar/governed-support-platform/issues/2) |
+| Current issue state | Ready; scope, non-scope, implementer, reviewer, required tests, and acceptance gate are recorded; implementation has not started |
+| Current branch | `main`; no E01 implementation branch exists yet |
+| Repository status | Baseline merged to `main`; [GitHub Project](https://github.com/users/ak23bar/projects/1), Package A-C milestones, approved labels, and E01-E03 issues configured |
 | Architecture baseline | Platform v1.5 / MOHID v0.6 |
-| Last completed gate | Architecture freeze |
+| Last completed gate | GitHub execution control plane configured; E01 placed in Ready |
 | Current blockers | None |
-| Next immediate criterion | Verify, commit, push, and merge the frozen repository baseline |
+| Next immediate criterion | Create the dedicated E01 implementation branch from `main` and begin with the first approved failing test |
 | Next acceptance gate | Complete E01 with clean-checkout bootstrap and GitHub Actions green |
 | Latest CI result | Not available; CI is not yet implemented |
 
 ## Active execution order
 
-1. Approve this execution packet.
-2. Create the new `governed-support-platform` repository.
-3. Commit the frozen living specifications and execution packet without modifying the PDFs.
-4. Tag the frozen specification baseline.
-5. Configure GitHub milestones, E01-E03 issues, labels, and board.
-6. Assign bounded E01 scaffolding to Codex.
-7. Repair until a fresh checkout passes the documented bootstrap and GitHub Actions is green.
-8. Audit and accept E01.
-9. Open the first bounded E02 persistence issue for Claude Code.
+1. Begin [E01](https://github.com/ak23bar/governed-support-platform/issues/2) on one dedicated branch with Codex as primary implementer.
+2. Repair until a fresh checkout passes the documented bootstrap and GitHub Actions is green.
+3. Submit E01 for independent review and user acceptance/merge.
+4. Move [E02](https://github.com/ak23bar/governed-support-platform/issues/3) from Backlog only after the E01 gate passes.
+5. Keep [E03](https://github.com/ak23bar/governed-support-platform/issues/4) in Backlog until its E01, E02, source-fixture, and approval dependencies are satisfied.
 
 ## Client-gated dependencies
 
