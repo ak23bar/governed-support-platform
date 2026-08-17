@@ -8,7 +8,9 @@ from pydantic import Field, model_validator
 from gps.domain.base import ContextualContract, Contract, RunContextContract, utc_now
 from gps.domain.enums import (
     ActorType,
+    CanonicalBlockType,
     CaseState,
+    CorpusPublicationStatus,
     DispatchMode,
     EnvironmentName,
     EvidenceCoverage,
@@ -20,6 +22,7 @@ from gps.domain.enums import (
     ResolutionType,
     RouteType,
     RunStatus,
+    SourceDocumentStatus,
     ToolActionStatus,
 )
 
@@ -76,6 +79,92 @@ class RequestRun(ContextualContract):
     started_at: datetime = Field(default_factory=utc_now)
     completed_at: datetime | None = None
     failure_class: str | None = None
+
+
+class SourceLink(Contract):
+    label: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+
+
+class CanonicalBlock(Contract):
+    block_id: str = Field(min_length=1)
+    block_type: CanonicalBlockType
+    heading_path: tuple[str, ...] = ()
+    ordinal: int = Field(ge=1)
+    text: str = Field(min_length=1)
+    links: tuple[SourceLink, ...] = ()
+    source_locator: str = Field(min_length=1)
+
+
+class SourceDocument(ContextualContract):
+    document_id: str = Field(min_length=1)
+    canonical_url: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    product: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+    language: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    status: SourceDocumentStatus
+    effective_from: datetime | None = None
+    effective_to: datetime | None = None
+    current_version_id: str | None = None
+
+    @model_validator(mode="after")
+    def approved_document_has_current_version(self) -> SourceDocument:
+        if self.status is SourceDocumentStatus.APPROVED and self.current_version_id is None:
+            raise ValueError("approved source document requires a current version")
+        if self.effective_from and self.effective_to and self.effective_to < self.effective_from:
+            raise ValueError("source document effective dates are invalid")
+        return self
+
+
+class SourceDocumentVersion(ContextualContract):
+    version_id: str = Field(min_length=1)
+    document_id: str = Field(min_length=1)
+    content_hash: str = Field(min_length=1)
+    raw_snapshot_ref: str = Field(min_length=1)
+    blocks: tuple[CanonicalBlock, ...] = Field(min_length=1)
+    generated_markdown_ref: str = Field(min_length=1)
+    structural_diff_ref: str = Field(min_length=1)
+    links: tuple[SourceLink, ...] = ()
+    fetched_at: datetime
+    published_at: datetime | None = None
+    parser_version: str = Field(min_length=1)
+
+
+class DocumentChunk(ContextualContract):
+    chunk_id: str = Field(min_length=1)
+    document_version_id: str = Field(min_length=1)
+    ordinal: int = Field(ge=1)
+    heading_path: tuple[str, ...] = ()
+    block_ids: tuple[str, ...] = Field(min_length=1)
+    block_types: tuple[CanonicalBlockType, ...] = Field(min_length=1)
+    text: str = Field(min_length=1)
+    locator: str = Field(min_length=1)
+    canonical_url: str = Field(min_length=1)
+    chunk_hash: str = Field(min_length=1)
+    embedding_version: str = Field(min_length=1)
+
+
+class CorpusVersion(ContextualContract):
+    corpus_version: str = Field(min_length=1)
+    document_version_ids: tuple[str, ...] = Field(min_length=1)
+    parser_version: str = Field(min_length=1)
+    chunker_version: str = Field(min_length=1)
+    embedding_version: str = Field(min_length=1)
+    validation_report_ref: str = Field(min_length=1)
+    structural_diff_ref: str = Field(min_length=1)
+    approval_actor: str | None = None
+    approved_at: datetime | None = None
+    publication_status: CorpusPublicationStatus
+
+    @model_validator(mode="after")
+    def approved_corpus_has_recorded_approval(self) -> CorpusVersion:
+        if self.publication_status is CorpusPublicationStatus.APPROVED and (
+            self.approval_actor is None or self.approved_at is None
+        ):
+            raise ValueError("approved corpus requires an approval actor and timestamp")
+        return self
 
 
 class SourceSpan(Contract):

@@ -11,15 +11,15 @@
 | Current package | Package A |
 | Current epic | E01 - Repository, CI, Domain Contracts, and Provider Fakes |
 | Current issue | [#2 - E01 Repository, CI, Domain Contracts, and Provider Fakes](https://github.com/ak23bar/governed-support-platform/issues/2) |
-| Current issue state | Implementation candidate complete in [PR #6](https://github.com/ak23bar/governed-support-platform/pull/6) and ready for independent ChatGPT Project review; Issue #2 remains open pending review and Akbar's merge decision |
+| Current issue state | Three remaining E01 contract gaps identified by independent ChatGPT Project review have been repaired for [PR #6](https://github.com/ak23bar/governed-support-platform/pull/6); Issue #2 remains open pending renewed review and Akbar's merge decision |
 | Current branch | `feat/e01-repository-ci-contracts-fakes` |
-| Repository status | E01 candidate is committed and pushed; it establishes the repository/tooling foundation, versioned contracts, semantic provider protocols and fakes, local PostgreSQL/Alembic shell, CI, bootstrap, and explicit E02/E03 acceptance shells |
+| Repository status | E01 candidate establishes the repository/tooling foundation, complete provider-neutral V1 contract language including source/corpus shells, semantic provider protocols and fakes including the expanded case-repository and vector filter seams, local PostgreSQL/Alembic shell, CI, bootstrap, and explicit E02/E03 acceptance shells |
 | Architecture baseline | Platform v1.5 / MOHID v0.6 |
-| Last completed gate | On 2026-08-16, `make bootstrap` completed with 57 passed and 2 explicit E02/E03 skips plus a successful API health probe; formatting, lint, strict typing, per-layer tests, dependency audit, license policy, Python compilation, shell syntax, Compose configuration, Alembic offline shell, and `git diff --check` pass |
+| Last completed gate | On 2026-08-16, the revised candidate's `make bootstrap` completed with 65 passed and 2 explicit E02/E03 skips plus a successful API health probe; formatting, lint, strict typing, per-layer tests, dependency audit, license policy, Python compilation, shell syntax, Compose configuration, Alembic offline shell, and `git diff --check` pass |
 | Current blockers | None. Client-gated dependencies remain future-epic constraints and do not block E01. |
-| Next immediate criterion | Independent ChatGPT Project review of PR #6 followed by Akbar's explicit merge decision; E02 remains blocked until E01 is accepted and merged |
+| Next immediate criterion | GitHub Actions green on the revised PR #6 head, then renewed independent ChatGPT Project review followed by Akbar's explicit merge decision; E02 remains blocked until E01 is accepted and merged |
 | Next acceptance gate | Complete E01 with clean-checkout bootstrap and GitHub Actions green |
-| Latest CI result | [PR #6 Actions run 31984513150](https://github.com/ak23bar/governed-support-platform/actions/runs/31984513150) passed clean-bootstrap, quality, and gitleaks secrets; GitGuardian also passed on 2026-08-16 (America/Chicago) |
+| Latest CI result | The prior PR #6 head passed all checks in [Actions run 31984661472](https://github.com/ak23bar/governed-support-platform/actions/runs/31984661472); revised-head checks are pending push |
 
 ## Active execution order
 

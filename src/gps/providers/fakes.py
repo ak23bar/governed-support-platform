@@ -3,10 +3,23 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-from gps.domain.contracts import AuditEvent, RequestRun, SupportCase
+from gps.domain.contracts import (
+    AuditEvent,
+    DispatchDecision,
+    FinalOutcome,
+    HumanDecision,
+    PolicyDecision,
+    RequestRun,
+    ResolutionDecision,
+    RoutingDecision,
+    SupportCase,
+    ToolAction,
+    VerificationResult,
+)
 from gps.domain.enums import ReceiptStatus, RunStatus
 from gps.providers.protocols import (
     AcquiredDocument,
+    CaseDecision,
     EmbeddingBatch,
     EmbeddingResult,
     Identity,
@@ -17,11 +30,14 @@ from gps.providers.protocols import (
     ModelResult,
     NormalizedMessage,
     ObjectArtifact,
+    OptimisticConcurrencyError,
     OutboundEnvelope,
     ProviderReceipt,
     ToolRequest,
+    VectorDeleteRequest,
     VectorMatch,
     VectorRecord,
+    VectorSearchRequest,
 )
 
 
@@ -57,27 +73,46 @@ class FakeEmbeddingProvider:
 
 @dataclass
 class FakeVectorStore:
-    records: dict[tuple[str, str, str], VectorRecord] = field(default_factory=dict)
+    records: dict[tuple[str, str, str, str], VectorRecord] = field(default_factory=dict)
 
     def upsert(self, records: tuple[VectorRecord, ...]) -> None:
         for record in records:
-            key = (*_scope(record.tenant_id, record.application_id), record.record_id)
+            key = (
+                *_scope(record.tenant_id, record.application_id),
+                record.corpus_version,
+                record.record_id,
+            )
             self.records[key] = record
 
-    def delete(self, tenant_id: str, application_id: str, record_ids: tuple[str, ...]) -> None:
-        for record_id in record_ids:
-            self.records.pop((tenant_id, application_id, record_id), None)
+    def delete(self, request: VectorDeleteRequest) -> None:
+        keys = [
+            key
+            for key, record in self.records.items()
+            if _vector_record_matches(record, request)
+            and (not request.record_ids or record.record_id in request.record_ids)
+        ]
+        for key in keys:
+            self.records.pop(key)
 
-    def search(self, query: VectorRecord, limit: int) -> tuple[VectorMatch, ...]:
+    def search(self, request: VectorSearchRequest) -> tuple[VectorMatch, ...]:
         matches = [
             VectorMatch(record_id=item.record_id, score=1.0, metadata=item.metadata)
-            for key, item in self.records.items()
-            if key[:2] == _scope(query.tenant_id, query.application_id)
+            for item in self.records.values()
+            if _vector_record_matches(item, request)
         ]
-        return tuple(matches[:limit])
+        return tuple(matches[: request.limit])
 
     def healthy(self) -> bool:
         return True
+
+
+def _vector_record_matches(record: VectorRecord, request: VectorSearchRequest | VectorDeleteRequest) -> bool:
+    return (
+        _scope(record.tenant_id, record.application_id) == _scope(request.tenant_id, request.application_id)
+        and record.corpus_version == request.corpus_version
+        and (request.document_id is None or record.document_id == request.document_id)
+        and all(record.metadata.get(key) == value for key, value in request.metadata_filters.items())
+    )
 
 
 @dataclass
@@ -105,13 +140,21 @@ class FakeObjectStore:
 class FakeCaseRepository:
     cases: dict[tuple[str, str, str], SupportCase] = field(default_factory=dict)
     runs: dict[tuple[str, str, str], RequestRun] = field(default_factory=dict)
+    decisions: dict[tuple[str, str, str, str, str], CaseDecision] = field(default_factory=dict)
+    actions: dict[tuple[str, str, str, str, str], ToolAction] = field(default_factory=dict)
+    outcomes: dict[tuple[str, str, str, str, str], FinalOutcome] = field(default_factory=dict)
     events: list[AuditEvent] = field(default_factory=list)
 
-    def put_case(self, case: SupportCase) -> None:
+    def put_case(self, case: SupportCase, *, expected_version: int | None = None) -> None:
         key = (*_scope(case.tenant_id, case.application_id), case.case_id)
         prior = self.cases.get(key)
-        if prior is not None and case.version <= prior.version and case != prior:
-            raise ValueError("case update requires a higher version")
+        if prior == case:
+            return
+        if prior is None:
+            if expected_version is not None:
+                raise OptimisticConcurrencyError("case does not exist at the expected version")
+        elif expected_version != prior.version or case.version != prior.version + 1:
+            raise OptimisticConcurrencyError("case version changed before update")
         self.cases[key] = case
 
     def get_case(self, tenant_id: str, application_id: str, case_id: str) -> SupportCase:
@@ -163,6 +206,41 @@ class FakeCaseRepository:
     def get_run(self, tenant_id: str, application_id: str, run_id: str) -> RequestRun:
         return self.runs[(tenant_id, application_id, run_id)]
 
+    def put_decision(self, decision: CaseDecision) -> None:
+        key = (
+            *_scope(decision.tenant_id, decision.application_id),
+            decision.case_id,
+            decision.run_id,
+            _decision_id(decision),
+        )
+        self.decisions[key] = decision
+
+    def get_decision(
+        self,
+        tenant_id: str,
+        application_id: str,
+        case_id: str,
+        run_id: str,
+        decision_id: str,
+    ) -> CaseDecision:
+        return self.decisions[(tenant_id, application_id, case_id, run_id, decision_id)]
+
+    def put_action(self, action: ToolAction) -> None:
+        key = (*_scope(action.tenant_id, action.application_id), action.case_id, action.run_id, action.action_id)
+        self.actions[key] = action
+
+    def get_action(self, tenant_id: str, application_id: str, case_id: str, run_id: str, action_id: str) -> ToolAction:
+        return self.actions[(tenant_id, application_id, case_id, run_id, action_id)]
+
+    def put_outcome(self, outcome: FinalOutcome) -> None:
+        key = (*_scope(outcome.tenant_id, outcome.application_id), outcome.case_id, outcome.run_id, outcome.outcome_id)
+        self.outcomes[key] = outcome
+
+    def get_outcome(
+        self, tenant_id: str, application_id: str, case_id: str, run_id: str, outcome_id: str
+    ) -> FinalOutcome:
+        return self.outcomes[(tenant_id, application_id, case_id, run_id, outcome_id)]
+
     def append_event(self, event: AuditEvent) -> None:
         if any(existing.event_id == event.event_id for existing in self.events):
             if event in self.events:
@@ -177,6 +255,16 @@ class FakeCaseRepository:
         if scoped and event.sequence <= scoped[-1].sequence:
             raise ValueError("AuditEvent sequence must increase within a case")
         self.events.append(event)
+
+
+def _decision_id(decision: CaseDecision) -> str:
+    if isinstance(decision, VerificationResult):
+        return decision.verification_id
+    if isinstance(decision, PolicyDecision):
+        return decision.policy_decision_id
+    if isinstance(decision, (ResolutionDecision, DispatchDecision, RoutingDecision, HumanDecision)):
+        return decision.decision_id
+    raise TypeError(f"unsupported decision contract: {type(decision).__name__}")
 
 
 @dataclass

@@ -2,7 +2,7 @@ from hashlib import sha256
 
 import pytest
 
-from gps.domain.contracts import AuditEvent, RequestRun, SupportCase
+from gps.domain.contracts import AuditEvent
 from gps.domain.enums import ActorType, CaseState, ReceiptStatus, RunStatus
 from gps.providers.protocols import (
     AcquiredDocument,
@@ -11,6 +11,7 @@ from gps.providers.protocols import (
     KnowledgeQuery,
     KnowledgeSource,
     ModelResult,
+    OptimisticConcurrencyError,
 )
 
 
@@ -28,14 +29,43 @@ def test_embedding_provider_returns_typed_versioned_batch(embedding_provider, em
     assert all(len(vector) == result.dimension for vector in result.vectors)
 
 
-def test_vector_store_is_tenant_and_application_isolated(vector_store, vector_record) -> None:
-    vector_store.upsert((vector_record,))
-    assert any(match.record_id == vector_record.record_id for match in vector_store.search(vector_record, 1))
-    other = vector_record.model_copy(update={"tenant_id": "t2", "record_id": "q"})
-    assert vector_store.search(other, 1) == ()
-    other_application = vector_record.model_copy(update={"application_id": "a2", "record_id": "q2"})
-    assert vector_store.search(other_application, 1) == ()
+def _record_ids(matches) -> set[str]:
+    return {match.record_id for match in matches}
+
+
+def test_vector_store_search_is_scoped_and_filtered(vector_store, vector_records, vector_search_request) -> None:
+    vector_store.upsert(vector_records)
+    assert _record_ids(vector_store.search(vector_search_request)) == {"target"}
+    assert _record_ids(vector_store.search(vector_search_request.model_copy(update={"tenant_id": "t2"}))) == {
+        "other-tenant"
+    }
+    assert _record_ids(vector_store.search(vector_search_request.model_copy(update={"application_id": "a2"}))) == {
+        "other-application"
+    }
+    assert _record_ids(vector_store.search(vector_search_request.model_copy(update={"corpus_version": "c2"}))) == {
+        "other-corpus"
+    }
+    assert _record_ids(vector_store.search(vector_search_request.model_copy(update={"document_id": "d2"}))) == {
+        "other-document"
+    }
+    assert _record_ids(
+        vector_store.search(vector_search_request.model_copy(update={"metadata_filters": {"kind": "warning"}}))
+    ) == {"other-metadata"}
     assert vector_store.healthy() is True
+
+
+def test_vector_store_delete_obeys_the_same_scope(
+    vector_store, vector_records, vector_search_request, vector_delete_request
+) -> None:
+    vector_store.upsert(vector_records)
+    vector_store.delete(vector_delete_request)
+    assert vector_store.search(vector_search_request) == ()
+    assert _record_ids(
+        vector_store.search(vector_search_request.model_copy(update={"metadata_filters": {"kind": "warning"}}))
+    ) == {"other-metadata"}
+    assert _record_ids(vector_store.search(vector_search_request.model_copy(update={"corpus_version": "c2"}))) == {
+        "other-corpus"
+    }
 
 
 def test_object_store_is_versioned_isolated_and_idempotent(
@@ -61,34 +91,47 @@ def test_object_store_is_versioned_isolated_and_idempotent(
         )
 
 
-def test_case_repository_semantics(case_repository, case_repository_missing_error, compatibility) -> None:
-    case = SupportCase(
-        tenant_id="t",
-        application_id="a",
-        case_id="c",
-        channel="manual",
-        requester_ref="synthetic",
-        state=CaseState.RECEIVED,
-        version=1,
-    )
-    case_repository.put_case(case)
-    assert case_repository.get_case("t", "a", "c") == case
+def test_case_repository_covers_typed_case_records(
+    case_repository,
+    case_repository_missing_error,
+    support_case,
+    request_run,
+    case_decision,
+    tool_action,
+    final_outcome,
+) -> None:
+    case_repository.put_case(support_case)
+    assert case_repository.get_case("t", "a", "c") == support_case
     with pytest.raises(case_repository_missing_error):
         case_repository.get_case("other", "a", "c")
-    run = RequestRun(
-        tenant_id="t",
-        application_id="a",
-        case_id="c",
-        run_id="r",
-        run_number=1,
-        trigger="intake",
-        environment="local",
-        compatibility=compatibility,
-        status=RunStatus.RECEIVED,
-    )
-    case_repository.put_run(run)
-    case_repository.put_run(run.model_copy(update={"status": RunStatus.NORMALIZED}))
+    case_repository.put_run(request_run)
+    case_repository.put_run(request_run.model_copy(update={"status": RunStatus.NORMALIZED}))
     assert case_repository.get_run("t", "a", "r").status is RunStatus.NORMALIZED
+    case_repository.put_decision(case_decision)
+    assert case_repository.get_decision("t", "a", "c", "r", "decision-1") == case_decision
+    case_repository.put_action(tool_action)
+    assert case_repository.get_action("t", "a", "c", "r", "action-1") == tool_action
+    case_repository.put_outcome(final_outcome)
+    assert case_repository.get_outcome("t", "a", "c", "r", "outcome-1") == final_outcome
+    for getter, record_id in (
+        (case_repository.get_decision, "decision-1"),
+        (case_repository.get_action, "action-1"),
+        (case_repository.get_outcome, "outcome-1"),
+    ):
+        with pytest.raises(case_repository_missing_error):
+            getter("other", "a", "c", "r", record_id)
+        with pytest.raises(case_repository_missing_error):
+            getter("t", "a", "c", "other-run", record_id)
+
+
+def test_case_repository_uses_explicit_optimistic_concurrency(case_repository, support_case) -> None:
+    case_repository.put_case(support_case)
+    updated = support_case.model_copy(update={"state": CaseState.PROCESSING, "version": 2})
+    case_repository.put_case(updated, expected_version=1)
+    stale = support_case.model_copy(update={"state": CaseState.AWAITING_REVIEW, "version": 2})
+    with pytest.raises(OptimisticConcurrencyError):
+        case_repository.put_case(stale, expected_version=1)
+    assert case_repository.get_case("t", "a", "c") == updated
 
 
 def test_knowledge_source_provider_is_tenant_isolated(knowledge_source_provider, prepare_knowledge_source) -> None:

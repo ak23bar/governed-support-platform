@@ -38,6 +38,7 @@ from gps.providers.protocols import (
     ToolExecutor,
     ToolRequest,
     VectorRecord,
+    VectorSearchRequest,
     VectorStore,
 )
 
@@ -142,15 +143,14 @@ def test_vector_and_knowledge_fakes_filter_tenant_context() -> None:
             ),
         )
     )
-    query = VectorRecord(
+    query = VectorSearchRequest(
         tenant_id="tenant-b",
         application_id="app",
-        record_id="q",
         corpus_version="c1",
-        document_id="q",
-        vector=(1.0,),
+        query_vector=(1.0,),
+        limit=5,
     )
-    assert vectors.search(query, 5) == ()
+    assert vectors.search(query) == ()
 
     provider = FakeKnowledgeSourceProvider()
     source = KnowledgeSource(

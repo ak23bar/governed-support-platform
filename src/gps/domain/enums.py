@@ -132,3 +132,23 @@ class EnvironmentName(StrictEnum):
     DEVELOPMENT = "development"
     STAGING = "staging"
     PRODUCTION = "production"
+
+
+class SourceDocumentStatus(StrictEnum):
+    APPROVED = "APPROVED"
+    DEPRECATED = "DEPRECATED"
+    REMOVED = "REMOVED"
+    DRAFT = "DRAFT"
+
+
+class CanonicalBlockType(StrictEnum):
+    PARAGRAPH = "paragraph"
+    ORDERED_STEPS = "ordered_steps"
+    WARNING = "warning"
+    TABLE = "table"
+    LINK = "link"
+
+
+class CorpusPublicationStatus(StrictEnum):
+    UNPUBLISHED = "UNPUBLISHED"
+    APPROVED = "APPROVED"

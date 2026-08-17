@@ -5,7 +5,19 @@ from typing import Any, Protocol, runtime_checkable
 from pydantic import Field
 
 from gps.domain.base import ContextualContract, Contract, RunContextContract
-from gps.domain.contracts import AuditEvent, RequestRun, SupportCase
+from gps.domain.contracts import (
+    AuditEvent,
+    DispatchDecision,
+    FinalOutcome,
+    HumanDecision,
+    PolicyDecision,
+    RequestRun,
+    ResolutionDecision,
+    RoutingDecision,
+    SupportCase,
+    ToolAction,
+    VerificationResult,
+)
 from gps.domain.enums import ReceiptStatus
 
 
@@ -39,6 +51,21 @@ class VectorRecord(ContextualContract):
     document_id: str = Field(min_length=1)
     vector: tuple[float, ...] = Field(min_length=1)
     metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class VectorSearchRequest(ContextualContract):
+    corpus_version: str = Field(min_length=1)
+    document_id: str | None = None
+    metadata_filters: dict[str, str] = Field(default_factory=dict)
+    query_vector: tuple[float, ...] = Field(min_length=1)
+    limit: int = Field(gt=0)
+
+
+class VectorDeleteRequest(ContextualContract):
+    corpus_version: str = Field(min_length=1)
+    record_ids: tuple[str, ...] = ()
+    document_id: str | None = None
+    metadata_filters: dict[str, str] = Field(default_factory=dict)
 
 
 class VectorMatch(Contract):
@@ -120,6 +147,15 @@ class Identity(ContextualContract):
     claims: dict[str, str] = Field(default_factory=dict)
 
 
+type CaseDecision = (
+    ResolutionDecision | VerificationResult | PolicyDecision | DispatchDecision | RoutingDecision | HumanDecision
+)
+
+
+class OptimisticConcurrencyError(RuntimeError):
+    """The stored case version differs from the caller's expected version."""
+
+
 @runtime_checkable
 class ModelProvider(Protocol):
     def generate(self, request: ModelRequest) -> ModelResult: ...
@@ -134,9 +170,9 @@ class EmbeddingProvider(Protocol):
 class VectorStore(Protocol):
     def upsert(self, records: tuple[VectorRecord, ...]) -> None: ...
 
-    def delete(self, tenant_id: str, application_id: str, record_ids: tuple[str, ...]) -> None: ...
+    def delete(self, request: VectorDeleteRequest) -> None: ...
 
-    def search(self, query: VectorRecord, limit: int) -> tuple[VectorMatch, ...]: ...
+    def search(self, request: VectorSearchRequest) -> tuple[VectorMatch, ...]: ...
 
     def healthy(self) -> bool: ...
 
@@ -150,13 +186,36 @@ class ObjectStore(Protocol):
 
 @runtime_checkable
 class CaseRepository(Protocol):
-    def put_case(self, case: SupportCase) -> None: ...
+    def put_case(self, case: SupportCase, *, expected_version: int | None = None) -> None: ...
 
     def get_case(self, tenant_id: str, application_id: str, case_id: str) -> SupportCase: ...
 
     def put_run(self, run: RequestRun) -> None: ...
 
     def get_run(self, tenant_id: str, application_id: str, run_id: str) -> RequestRun: ...
+
+    def put_decision(self, decision: CaseDecision) -> None: ...
+
+    def get_decision(
+        self,
+        tenant_id: str,
+        application_id: str,
+        case_id: str,
+        run_id: str,
+        decision_id: str,
+    ) -> CaseDecision: ...
+
+    def put_action(self, action: ToolAction) -> None: ...
+
+    def get_action(
+        self, tenant_id: str, application_id: str, case_id: str, run_id: str, action_id: str
+    ) -> ToolAction: ...
+
+    def put_outcome(self, outcome: FinalOutcome) -> None: ...
+
+    def get_outcome(
+        self, tenant_id: str, application_id: str, case_id: str, run_id: str, outcome_id: str
+    ) -> FinalOutcome: ...
 
     def append_event(self, event: AuditEvent) -> None: ...
 
