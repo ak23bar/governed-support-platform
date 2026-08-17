@@ -11,23 +11,24 @@
 | Current package | Package A |
 | Current epic | E01 - Repository, CI, Domain Contracts, and Provider Fakes |
 | Current issue | [#2 - E01 Repository, CI, Domain Contracts, and Provider Fakes](https://github.com/ak23bar/governed-support-platform/issues/2) |
-| Current issue state | Ready; scope, non-scope, implementer, reviewer, required tests, and acceptance gate are recorded; implementation has not started |
-| Current branch | `main`; no E01 implementation branch exists yet |
-| Repository status | Baseline merged to `main`; [GitHub Project](https://github.com/users/ak23bar/projects/1), Package A-C milestones, approved labels, and E01-E03 issues configured |
+| Current PR | [#6 - E01 Repository, CI, Domain Contracts, and Provider Fakes](https://github.com/ak23bar/governed-support-platform/pull/6) |
+| Current issue state | Final E01 candidate satisfies implementation and review requirements and is awaiting the final human merge gate; Issue #2 remains open and E01 is not yet accepted |
+| Current branch | `feat/e01-repository-ci-contracts-fakes` |
+| Repository status | E01 candidate includes the monorepo/tooling foundation, provider-neutral Pydantic contracts, derived readonly TypeScript declarations, semantic provider protocols/fakes, environment model, decision register/ADR template, local PostgreSQL/Alembic shell, CI, bootstrap, and explicit E02/E03 acceptance shells |
 | Architecture baseline | Platform v1.5 / MOHID v0.6 |
-| Last completed gate | GitHub execution control plane configured; E01 placed in Ready |
-| Current blockers | None |
-| Next immediate criterion | Create the dedicated E01 implementation branch from `main` and begin with the first approved failing test |
-| Next acceptance gate | Complete E01 with clean-checkout bootstrap and GitHub Actions green |
-| Latest CI result | Not available; CI is not yet implemented |
+| Last completed technical gate | All locally runnable E01 checks and the latest current-head GitHub Actions quality gates are green; PR #6 checks remain the authoritative automated record |
+| Current blockers | None before merge. Client-gated dependencies remain future-epic constraints and do not block E01 acceptance. |
+| Next immediate criterion | Akbar's explicit merge decision for PR #6 |
+| Next acceptance gate | Merge PR #6 only by Akbar's decision; do not begin E02 before E01 is accepted |
+| Authoritative CI state | GitHub Actions checks attached to the current PR #6 head; all required checks must remain green before merge |
+| After merge | E01 becomes accepted and [E02 Issue #3](https://github.com/ak23bar/governed-support-platform/issues/3) becomes the active implementation issue |
 
 ## Active execution order
 
-1. Begin [E01](https://github.com/ak23bar/governed-support-platform/issues/2) on one dedicated branch with Codex as primary implementer.
-2. Repair until a fresh checkout passes the documented bootstrap and GitHub Actions is green.
-3. Submit E01 for independent review and user acceptance/merge.
-4. Move [E02](https://github.com/ak23bar/governed-support-platform/issues/3) from Backlog only after the E01 gate passes.
-5. Keep [E03](https://github.com/ak23bar/governed-support-platform/issues/4) in Backlog until its E01, E02, source-fixture, and approval dependencies are satisfied.
+1. Keep PR #6 on the dedicated E01 branch with all current-head GitHub Actions checks green.
+2. Await Akbar's explicit merge decision; do not mark E01 accepted before merge.
+3. Move [E02](https://github.com/ak23bar/governed-support-platform/issues/3) from Backlog to active implementation only after E01 is accepted and merged.
+4. Keep [E03](https://github.com/ak23bar/governed-support-platform/issues/4) in Backlog until its E01, E02, source-fixture, and approval dependencies are satisfied.
 
 ## Client-gated dependencies
 

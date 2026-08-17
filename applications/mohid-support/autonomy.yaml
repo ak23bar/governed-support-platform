@@ -1,0 +1,7 @@
+schema_version: "1.0"
+requested_capabilities:
+  - knowledge.sync
+  - case.read
+  - case.route
+  - review.propose
+automatic_dispatch_enabled: false

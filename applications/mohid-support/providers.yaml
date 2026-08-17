@@ -1,0 +1,5 @@
+schema_version: "1.0"
+profiles:
+  model: fake
+  embedding: fake
+  knowledge_source: fake

@@ -1,0 +1,9 @@
+schema_version: "1.0"
+environment: local
+tenant_id: mohid
+application_id: mohid-support
+deployment_target: local-loopback
+provider_profile_refs:
+  - fake-providers-0.1.0
+external_side_effects_enabled: false
+approved_test_recipient_refs: []

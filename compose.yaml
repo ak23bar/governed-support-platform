@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gps
+      POSTGRES_USER: gps
+      POSTGRES_PASSWORD: local-only
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gps -d gps"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - gps-postgres:/var/lib/postgresql/data
+
+volumes:
+  gps-postgres:

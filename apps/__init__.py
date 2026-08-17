@@ -1,0 +1,1 @@
+"""GPS application entry points."""
