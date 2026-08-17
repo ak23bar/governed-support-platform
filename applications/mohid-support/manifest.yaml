@@ -1,0 +1,11 @@
+schema_version: "1.0"
+application_id: mohid-support
+package_version: mohid-support-0.1.0
+name: MOHID Support
+required_runtime: gps-runtime-0.1.0
+workflow_version: workflow-shell-0.1.0
+corpus_version: corpus-unpublished-0
+policy_version: mohid-policy-shell-0.1.0
+model_profile_version: model-profile-fake-0.1.0
+adapter_versions:
+  - fake-providers-0.1.0

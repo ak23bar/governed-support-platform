@@ -1,0 +1,6 @@
+schema_version: "1.0"
+default_route: LEVEL_1
+queues:
+  - queue_id: mohid-level-1
+    route_type: LEVEL_1
+    function: support

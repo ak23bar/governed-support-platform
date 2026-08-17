@@ -1,0 +1,4 @@
+schema_version: "1.0"
+requested_capabilities:
+  - operation.execute
+automatic_dispatch_enabled: true
