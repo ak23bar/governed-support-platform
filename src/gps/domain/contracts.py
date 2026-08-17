@@ -383,3 +383,33 @@ class FinalOutcome(RunContextContract):
     close_reason: str = Field(min_length=1)
     timing_summary: dict[str, float] = Field(default_factory=dict)
     quality_flags: tuple[str, ...] = ()
+
+
+class FeedbackEvent(ContextualContract):
+    """Immutable outcome evidence attached to a case after resolution."""
+
+    feedback_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    rating: int | None = None
+    feedback_type: str | None = Field(default=None, min_length=1)
+    comment: str = Field(min_length=1)
+    received_at: datetime
+
+    @model_validator(mode="after")
+    def rating_or_type_is_present(self) -> FeedbackEvent:
+        if self.rating is None and self.feedback_type is None:
+            raise ValueError("feedback requires a rating or feedback type")
+        return self
+
+
+class ReopenEvent(ContextualContract):
+    """Immutable link from a preserved prior outcome to a new processing run."""
+
+    reopen_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    prior_outcome_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    new_message_or_event_ref: str = Field(min_length=1)
+    reopened_at: datetime
+    new_run_id: str = Field(min_length=1)
